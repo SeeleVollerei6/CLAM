@@ -6,6 +6,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+from torchvision import transforms
 import timm
 from torch.utils.data import DataLoader
 from PIL import Image
@@ -34,7 +35,7 @@ def compute_w_loader(output_path, loader, model, verbose = 0):
 	mode = 'w'
 	for count, data in enumerate(tqdm(loader)):
 		with torch.inference_mode():	
-			with torch.amp.autocast('cuda', dtype=torch.bfloat16): :
+			with torch.amp.autocast('cuda', dtype=torch.bfloat16):
 				batch = data['img']
 				batch = batch.to(device, non_blocking=True)
 				features = model(batch)
