@@ -34,13 +34,13 @@ def compute_w_loader(output_path, loader, model, verbose = 0):
 	mode = 'w'
 	for count, data in enumerate(tqdm(loader)):
 		with torch.inference_mode():	
-			with torch.amp.autocast('cuda'):
+			with torch.amp.autocast('cuda', dtype=torch.bfloat16): :
 				batch = data['img']
-				coords = data['coord'].numpy().astype(np.int32)
 				batch = batch.to(device, non_blocking=True)
+				features = model(batch)
 				
-			features = model(batch)
-			features = features.cpu().numpy().astype(np.float32)
+			features = features.detach().cpu().numpy().astype(np.float32)
+			coords = data['coord'].numpy().astype(np.int32)
 	
 			asset_dict = {'features': features, 'coords': coords}
 			save_hdf5(output_path, asset_dict, attr_dict= None, mode=mode)
@@ -75,18 +75,25 @@ if __name__ == '__main__':
 	os.makedirs(os.path.join(args.feat_dir, 'h5_files'), exist_ok=True)
 	dest_files = os.listdir(os.path.join(args.feat_dir, 'pt_files'))
 
-	model = timm.create_model("hf_hub:MahmoodLab/UNI", pretrained=True, num_classes=0)
+	model = timm.create_model(
+        "hf_hub:MahmoodLab/UNI", 
+        pretrained=True, 
+        num_classes=0, 
+        init_values=1e-5, 
+        dynamic_img_size=True
+    )
     
 	img_transforms = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
-			
+
+	model = torch.compile(model) 
 	_ = model.eval()
 	model = model.to(device)
 	total = len(bags_dataset)
 
-	loader_kwargs = {'num_workers': 8, 'pin_memory': True} if device.type == "cuda" else {}
+	loader_kwargs = {'num_workers': 8, 'pin_memory': True, 'prefetch_factor': 4, 'persistent_workers': True} if device.type == "cuda" else {}
 
 	for bag_candidate_idx in tqdm(range(total)):
 		slide_id = bags_dataset[bag_candidate_idx].split(args.slide_ext)[0]
