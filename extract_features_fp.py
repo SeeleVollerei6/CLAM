@@ -34,13 +34,14 @@ def compute_w_loader(output_path, loader, model, verbose = 0):
 	mode = 'w'
 	for count, data in enumerate(tqdm(loader)):
 		with torch.inference_mode():	
-			batch = data['img']
-			coords = data['coord'].numpy().astype(np.int32)
-			batch = batch.to(device, non_blocking=True)
-			
+			with torch.amp.autocast('cuda'):
+				batch = data['img']
+				coords = data['coord'].numpy().astype(np.int32)
+				batch = batch.to(device, non_blocking=True)
+				
 			features = model(batch)
 			features = features.cpu().numpy().astype(np.float32)
-
+	
 			asset_dict = {'features': features, 'coords': coords}
 			save_hdf5(output_path, asset_dict, attr_dict= None, mode=mode)
 			mode = 'a'
@@ -74,7 +75,13 @@ if __name__ == '__main__':
 	os.makedirs(os.path.join(args.feat_dir, 'h5_files'), exist_ok=True)
 	dest_files = os.listdir(os.path.join(args.feat_dir, 'pt_files'))
 
-	model, img_transforms = get_encoder(args.model_name, target_img_size=args.target_patch_size)
+	model = timm.create_model("hf_hub:MahmoodLab/UNI", pretrained=True, num_classes=0)
+    
+    img_transforms = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    ])
 			
 	_ = model.eval()
 	model = model.to(device)
