@@ -77,11 +77,10 @@ if __name__ == '__main__':
 
 	model = timm.create_model("hf_hub:MahmoodLab/UNI", pretrained=True, num_classes=0)
     
-    img_transforms = transforms.Compose([
+	img_transforms = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-    ])
+        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 			
 	_ = model.eval()
 	model = model.to(device)
